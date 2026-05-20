@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
@@ -145,7 +145,9 @@ function SkillCard({ skill, onClick, isInstalled }) {
             }}
           >
             {isInstalled ? (
-              <StatusBadge status="installed" />
+              <StatusBadge
+                status={skill.status === 'outdated' ? 'outdated' : 'installed'}
+              />
             ) : (
               <StatusBadge status={skill.status} />
             )}
@@ -267,14 +269,14 @@ function InstallSheet({ skill, onClose, onComplete }) {
 
     if (step === 2) {
       setupListeners()
-      invoke('install_skill', { skillId: skill.id })
+      invoke('install_skill', { skillId: skill.id, skillName: skill.name })
     }
 
     return () => {
       if (unlistenProgress) unlistenProgress()
       if (unlistenSuccess) unlistenSuccess()
     }
-  }, [step, skill.id, onComplete])
+  }, [step, skill.id, skill.name, onComplete])
 
   return (
     <div
@@ -449,7 +451,7 @@ function InstallSheet({ skill, onClose, onComplete }) {
                     inset: 0,
                     display: 'flex',
                     alignItems: 'center',
-                    justifyCenter: 'center',
+                    justifyContent: 'center',
                     fontWeight: '700',
                     fontSize: '14px',
                   }}
@@ -576,7 +578,9 @@ function SkillDetail({
             }}
           >
             {isInstalled ? (
-              <StatusBadge status="installed" />
+              <StatusBadge
+                status={skill.status === 'outdated' ? 'outdated' : 'installed'}
+              />
             ) : (
               <StatusBadge status={skill.status} />
             )}
@@ -702,22 +706,48 @@ function SkillDetail({
         >
           {isRegistry ? (
             <button
-              disabled={isInstalled}
+              disabled={isInstalled && skill.status !== 'outdated'}
               onClick={() => onInstall(skill)}
               style={{
                 padding: '12px',
                 borderRadius: 'var(--r-md)',
-                background: isInstalled ? 'var(--line)' : 'var(--accent)',
+                background:
+                  isInstalled && skill.status !== 'outdated'
+                    ? 'var(--line)'
+                    : 'var(--accent)',
                 color: 'white',
                 border: 'none',
                 fontWeight: '600',
-                cursor: isInstalled ? 'default' : 'pointer',
+                cursor:
+                  isInstalled && skill.status !== 'outdated'
+                    ? 'default'
+                    : 'pointer',
               }}
             >
-              {isInstalled ? 'Already Installed' : 'Install Skill'}
+              {skill.status === 'outdated'
+                ? 'Update Skill'
+                : isInstalled
+                  ? 'Already Installed'
+                  : 'Install Skill'}
             </button>
           ) : (
             <>
+              {skill.status === 'outdated' && (
+                <button
+                  onClick={() => onInstall(skill)}
+                  style={{
+                    padding: '12px',
+                    borderRadius: 'var(--r-md)',
+                    background: 'var(--warn)',
+                    color: 'white',
+                    border: 'none',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Update to latest
+                </button>
+              )}
               <button
                 style={{
                   padding: '12px',
@@ -935,7 +965,12 @@ function SettingsView({ config, onUpdate }) {
   )
 }
 
-function DiscoverView({ searchQuery, onSelectSkill, installedIds }) {
+function DiscoverView({
+  searchQuery,
+  onSelectSkill,
+  installedIds,
+  installedSkills,
+}) {
   const [registrySkills, setRegistrySkills] = useState([])
   const [categories, setCategories] = useState([])
   const [selectedCategory, setSelectedCategory] = useState('all')
@@ -969,7 +1004,6 @@ function DiscoverView({ searchQuery, onSelectSkill, installedIds }) {
 
   return (
     <div style={{ display: 'flex', minHeight: '100%' }}>
-      {/* Category Sidebar */}
       <div
         style={{
           width: '200px',
@@ -1018,7 +1052,6 @@ function DiscoverView({ searchQuery, onSelectSkill, installedIds }) {
         </div>
       </div>
 
-      {/* Grid Content */}
       <div style={{ flex: 1, padding: '32px' }}>
         <h2 style={{ fontSize: '24px', marginBottom: '8px' }}>Discover</h2>
         <p
@@ -1052,17 +1085,28 @@ function DiscoverView({ searchQuery, onSelectSkill, installedIds }) {
               gap: '20px',
             }}
           >
-            {registrySkills.map((skill) => (
-              <SkillCard
-                key={skill.id}
-                skill={skill}
-                onClick={async () => {
-                  const detail = await fetchSkillDetail(skill.id)
-                  onSelectSkill(detail)
-                }}
-                isInstalled={installedIds.includes(skill.id)}
-              />
-            ))}
+            {registrySkills.map((skill) => {
+              const localSkill = installedSkills.find((s) => s.id === skill.id)
+              const isOutdated =
+                localSkill && localSkill.version !== skill.version
+              return (
+                <SkillCard
+                  key={skill.id}
+                  skill={{
+                    ...skill,
+                    status: isOutdated ? 'outdated' : skill.status,
+                  }}
+                  onClick={async () => {
+                    const detail = await fetchSkillDetail(skill.id)
+                    onSelectSkill({
+                      ...detail,
+                      status: isOutdated ? 'outdated' : detail.status,
+                    })
+                  }}
+                  isInstalled={installedIds.includes(skill.id)}
+                />
+              )
+            })}
           </div>
         ) : (
           <div style={{ textAlign: 'center', padding: '64px 0' }}>
@@ -1082,18 +1126,138 @@ function DiscoverView({ searchQuery, onSelectSkill, installedIds }) {
   )
 }
 
+function ActivityView() {
+  const [activities, setActivities] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadActivities() {
+      const result = await invoke('get_activities')
+      setActivities(result)
+      setLoading(false)
+    }
+    loadActivities()
+  }, [])
+
+  const formatDate = (ts) => {
+    return new Date(ts * 1000).toLocaleString()
+  }
+
+  const getActionIcon = (action) => {
+    switch (action) {
+      case 'install':
+        return '📥'
+      case 'update':
+        return '🆙'
+      case 'uninstall':
+        return '🗑️'
+      case 'enable':
+        return '✅'
+      case 'disable':
+        return '🚫'
+      default:
+        return '📝'
+    }
+  }
+
+  return (
+    <div style={{ padding: '32px', maxWidth: '800px' }}>
+      <h2 style={{ fontSize: '24px', marginBottom: '32px' }}>Activity</h2>
+
+      {loading ? (
+        <p>Loading activity...</p>
+      ) : activities.length > 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {activities.map((act) => (
+            <MacGlass key={act.id} radius={12}>
+              <div
+                style={{
+                  padding: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '16px',
+                }}
+              >
+                <div style={{ fontSize: '24px' }}>
+                  {getActionIcon(act.action)}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: '600', fontSize: '14px' }}>
+                    {act.skill_name}{' '}
+                    <span style={{ fontWeight: '400', color: 'var(--muted)' }}>
+                      was {act.action}ed
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '12px',
+                      color: 'var(--muted)',
+                      marginTop: '2px',
+                    }}
+                  >
+                    {formatDate(act.timestamp)}
+                  </div>
+                </div>
+                <div
+                  style={{
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    color:
+                      act.status === 'success' ? 'var(--ok)' : 'var(--danger)',
+                  }}
+                >
+                  {act.status.toUpperCase()}
+                </div>
+              </div>
+            </MacGlass>
+          ))}
+        </div>
+      ) : (
+        <div style={{ textAlign: 'center', padding: '64px 0' }}>
+          <div style={{ fontSize: '48px' }}>📜</div>
+          <h3
+            style={{ fontSize: '18px', fontWeight: '600', marginTop: '16px' }}
+          >
+            No activity yet
+          </h3>
+          <p style={{ color: 'var(--muted)', marginTop: '8px' }}>
+            Your installation and update history will appear here.
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function App() {
   const [currentView, setCurrentView] = useState('library')
   const [skills, setSkills] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedSkill, setSelectedSkill] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [activeFilters, setActiveFilters] = useState({
-    type: [],
-    status: [],
-  })
+  const [activeFilters, setActiveFilters] = useState({ type: [], status: [] })
   const [config, setConfig] = useState({ skills_dir: null, auto_reload: true })
   const [installingSkill, setInstallingSkill] = useState(null)
+  const [updatesAvailable, setUpdatesAvailable] = useState(0)
+
+  const checkUpdates = useCallback(async (localSkills) => {
+    try {
+      const registry = await fetchRegistrySkills()
+      let count = 0
+      const updatedSkills = localSkills.map((skill) => {
+        const remote = registry.skills.find((s) => s.id === skill.id)
+        if (remote && remote.version !== skill.version) {
+          count++
+          return { ...skill, status: 'outdated' }
+        }
+        return skill
+      })
+      setSkills(updatedSkills)
+      setUpdatesAvailable(count)
+    } catch (e) {
+      console.error('Update check failed:', e)
+    }
+  }, [])
 
   useEffect(() => {
     async function init() {
@@ -1107,6 +1271,7 @@ function App() {
           type: s.type || (s.id.includes('method') ? 'method' : 'skill'),
         }))
         setSkills(normalizedResult)
+        checkUpdates(normalizedResult)
       } catch (error) {
         console.error('Initialization failed:', error)
       } finally {
@@ -1114,7 +1279,7 @@ function App() {
       }
     }
     init()
-  }, [])
+  }, [checkUpdates])
 
   const handleUpdateConfig = async (newConfig) => {
     try {
@@ -1124,12 +1289,12 @@ function App() {
       if (newConfig.skills_dir !== config.skills_dir) {
         setLoading(true)
         const result = await invoke('get_skills')
-        setSkills(
-          result.map((s) => ({
-            ...s,
-            type: s.type || (s.id.includes('method') ? 'method' : 'skill'),
-          }))
-        )
+        const normalized = result.map((s) => ({
+          ...s,
+          type: s.type || (s.id.includes('method') ? 'method' : 'skill'),
+        }))
+        setSkills(normalized)
+        checkUpdates(normalized)
         setLoading(false)
       }
     } catch (error) {
@@ -1140,15 +1305,14 @@ function App() {
   const handleInstallComplete = async () => {
     setInstallingSkill(null)
     setSelectedSkill(null)
-    // Reload library
     setLoading(true)
     const result = await invoke('get_skills')
-    setSkills(
-      result.map((s) => ({
-        ...s,
-        type: s.type || (s.id.includes('method') ? 'method' : 'skill'),
-      }))
-    )
+    const normalized = result.map((s) => ({
+      ...s,
+      type: s.type || (s.id.includes('method') ? 'method' : 'skill'),
+    }))
+    setSkills(normalized)
+    checkUpdates(normalized)
     setLoading(false)
     setCurrentView('library')
   }
@@ -1167,35 +1331,39 @@ function App() {
     return skills.filter((skill) => {
       if (searchQuery) {
         const query = searchQuery.toLowerCase()
-        const matchesSearch =
-          skill.name.toLowerCase().includes(query) ||
-          skill.description.toLowerCase().includes(query) ||
-          skill.author.toLowerCase().includes(query)
-
-        if (!matchesSearch) return false
+        if (
+          !(
+            skill.name.toLowerCase().includes(query) ||
+            skill.description.toLowerCase().includes(query) ||
+            skill.author.toLowerCase().includes(query)
+          )
+        )
+          return false
       }
-
-      if (activeFilters.type.length > 0) {
-        if (!activeFilters.type.includes(skill.type)) return false
-      }
-
-      if (activeFilters.status.length > 0) {
-        if (!activeFilters.status.includes(skill.status)) return false
-      }
-
+      if (
+        activeFilters.type.length > 0 &&
+        !activeFilters.type.includes(skill.type)
+      )
+        return false
+      if (
+        activeFilters.status.length > 0 &&
+        !activeFilters.status.includes(skill.status)
+      )
+        return false
       return true
     })
   }, [skills, searchQuery, activeFilters])
 
-  const counts = useMemo(() => {
-    return {
+  const counts = useMemo(
+    () => ({
       skill: skills.filter((s) => s.type === 'skill').length,
       method: skills.filter((s) => s.type === 'method').length,
       active: skills.filter((s) => s.status === 'active').length,
       outdated: skills.filter((s) => s.status === 'outdated').length,
       broken: skills.filter((s) => s.status === 'broken').length,
-    }
-  }, [skills])
+    }),
+    [skills]
+  )
 
   const installedIds = useMemo(() => skills.map((s) => s.id), [skills])
 
@@ -1212,7 +1380,6 @@ function App() {
         selected={currentView === 'discover'}
         onClick={() => setCurrentView('discover')}
       />
-
       <MacSidebarHeader title="App" />
       <MacSidebarItem
         label="Activity"
@@ -1238,7 +1405,9 @@ function App() {
         <div
           style={{
             padding:
-              currentView === 'settings' || currentView === 'discover'
+              currentView === 'settings' ||
+              currentView === 'discover' ||
+              currentView === 'activity'
                 ? '0'
                 : '20px',
             opacity: selectedSkill || installingSkill ? 0.6 : 1,
@@ -1249,6 +1418,40 @@ function App() {
         >
           {currentView === 'library' && (
             <div>
+              {updatesAvailable > 0 && (
+                <div
+                  style={{
+                    background: 'var(--accent-soft)',
+                    color: 'var(--accent)',
+                    padding: '12px 20px',
+                    borderRadius: 'var(--r-md)',
+                    marginBottom: '24px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <span style={{ fontSize: '13px', fontWeight: '600' }}>
+                    ✨ {updatesAvailable} updates available for your skills
+                  </span>
+                  <button
+                    onClick={() => toggleFilter('status', 'outdated')}
+                    style={{
+                      background: 'var(--accent)',
+                      color: 'white',
+                      border: 'none',
+                      padding: '4px 12px',
+                      borderRadius: 'var(--r-sm)',
+                      fontSize: '11px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    View Updates
+                  </button>
+                </div>
+              )}
+
               <div
                 style={{
                   display: 'flex',
@@ -1305,26 +1508,6 @@ function App() {
                     onClick={() => toggleFilter('status', 'outdated')}
                     count={counts.outdated}
                   />
-                  {(activeFilters.type.length > 0 ||
-                    activeFilters.status.length > 0 ||
-                    searchQuery) && (
-                    <button
-                      onClick={() => {
-                        setActiveFilters({ type: [], status: [] })
-                        setSearchQuery('')
-                      }}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--accent)',
-                        fontSize: '12px',
-                        cursor: 'pointer',
-                        padding: '0 8px',
-                      }}
-                    >
-                      Clear all
-                    </button>
-                  )}
                 </div>
               )}
 
@@ -1341,6 +1524,7 @@ function App() {
                       key={skill.id}
                       skill={skill}
                       onClick={(s) => setSelectedSkill(s)}
+                      isInstalled={true}
                     />
                   ))}
                 </div>
@@ -1369,19 +1553,6 @@ function App() {
                       ? 'No results found'
                       : 'No skills found'}
                   </h3>
-                  <p
-                    style={{
-                      color: 'var(--muted)',
-                      maxWidth: '300px',
-                      lineHeight: '1.5',
-                    }}
-                  >
-                    {searchQuery ||
-                    activeFilters.type.length ||
-                    activeFilters.status.length
-                      ? "Adjust your search or filters to find what you're looking for."
-                      : "You haven't installed any skills yet. Visit the **Discover** tab to browse and install capabilities."}
-                  </p>
                   <button
                     onClick={() => {
                       if (
@@ -1421,9 +1592,10 @@ function App() {
               searchQuery={searchQuery}
               onSelectSkill={setSelectedSkill}
               installedIds={installedIds}
+              installedSkills={skills}
             />
           )}
-          {currentView === 'activity' && <div>Recent activity...</div>}
+          {currentView === 'activity' && <ActivityView />}
           {currentView === 'settings' && (
             <SettingsView config={config} onUpdate={handleUpdateConfig} />
           )}
@@ -1434,7 +1606,7 @@ function App() {
         <SkillDetail
           skill={selectedSkill}
           onClose={() => setSelectedSkill(null)}
-          isRegistry={installedIds.indexOf(selectedSkill.id) === -1}
+          isRegistry={!installedIds.includes(selectedSkill.id)}
           isInstalled={installedIds.includes(selectedSkill.id)}
           onInstall={(s) => setInstallingSkill(s)}
         />
