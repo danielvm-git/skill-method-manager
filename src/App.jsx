@@ -7,6 +7,11 @@ import {
   MacSidebarHeader,
   MacGlass,
 } from './components/macos-window'
+import {
+  fetchRegistrySkills,
+  fetchCategories,
+  fetchSkillDetail,
+} from './api/registry'
 
 function StatusBadge({ status }) {
   const colors = {
@@ -14,6 +19,7 @@ function StatusBadge({ status }) {
     inactive: 'var(--muted)',
     outdated: 'var(--warn)',
     broken: 'var(--danger)',
+    installed: 'var(--info)',
   }
 
   return (
@@ -81,7 +87,7 @@ function FilterChip({ label, active, onClick, count }) {
   )
 }
 
-function SkillCard({ skill, onClick }) {
+function SkillCard({ skill, onClick, isInstalled }) {
   return (
     <div onClick={() => onClick(skill)} style={{ cursor: 'pointer' }}>
       <MacGlass radius={14} style={{ marginBottom: '12px' }}>
@@ -137,7 +143,11 @@ function SkillCard({ skill, onClick }) {
               gap: '8px',
             }}
           >
-            <StatusBadge status={skill.status} />
+            {isInstalled ? (
+              <StatusBadge status="installed" />
+            ) : (
+              <StatusBadge status={skill.status} />
+            )}
             <div style={{ fontSize: '11px', color: 'var(--muted)' }}>
               by {skill.author}
             </div>
@@ -206,7 +216,12 @@ function SkillCardSkeleton() {
   )
 }
 
-function SkillDetail({ skill, onClose }) {
+function SkillDetail({
+  skill,
+  onClose,
+  isRegistry = false,
+  isInstalled = false,
+}) {
   if (!skill) return null
 
   return (
@@ -247,7 +262,7 @@ function SkillDetail({ skill, onClose }) {
           ✕
         </button>
         <span style={{ fontWeight: '700', fontSize: '15px' }}>
-          Skill Details
+          {isRegistry ? 'Registry Skill' : 'Skill Details'}
         </span>
         <div style={{ width: '18px' }} />
       </div>
@@ -280,7 +295,11 @@ function SkillDetail({ skill, onClose }) {
               alignItems: 'center',
             }}
           >
-            <StatusBadge status={skill.status} />
+            {isInstalled ? (
+              <StatusBadge status="installed" />
+            ) : (
+              <StatusBadge status={skill.status} />
+            )}
             <span style={{ color: 'var(--muted)', fontSize: '13px' }}>
               v{skill.version}
             </span>
@@ -308,7 +327,50 @@ function SkillDetail({ skill, onClose }) {
           >
             {skill.description}
           </p>
+          {skill.longDescription && (
+            <p
+              style={{
+                fontSize: '14px',
+                lineHeight: '1.6',
+                color: 'var(--muted)',
+                marginTop: '12px',
+              }}
+            >
+              {skill.longDescription}
+            </p>
+          )}
         </div>
+
+        {skill.dependencies && skill.dependencies.length > 0 && (
+          <div style={{ marginBottom: '32px' }}>
+            <h3
+              style={{
+                fontSize: '13px',
+                fontWeight: '700',
+                color: 'var(--muted)',
+                textTransform: 'uppercase',
+                marginBottom: '12px',
+              }}
+            >
+              Dependencies
+            </h3>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {skill.dependencies.map((dep) => (
+                <span
+                  key={dep}
+                  style={{
+                    background: 'var(--bg)',
+                    padding: '4px 10px',
+                    borderRadius: 'var(--r-sm)',
+                    fontSize: '12px',
+                  }}
+                >
+                  {dep}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div style={{ marginBottom: '32px' }}>
           <h3
@@ -358,32 +420,51 @@ function SkillDetail({ skill, onClose }) {
             gap: '12px',
           }}
         >
-          <button
-            style={{
-              padding: '12px',
-              borderRadius: 'var(--r-md)',
-              background: 'var(--accent)',
-              color: 'white',
-              border: 'none',
-              fontWeight: '600',
-              cursor: 'pointer',
-            }}
-          >
-            Enable Skill
-          </button>
-          <button
-            style={{
-              padding: '12px',
-              borderRadius: 'var(--r-md)',
-              background: 'rgba(255,0,0,0.05)',
-              color: 'var(--danger)',
-              border: '1px solid var(--danger)',
-              fontWeight: '600',
-              cursor: 'pointer',
-            }}
-          >
-            Uninstall
-          </button>
+          {isRegistry ? (
+            <button
+              disabled={isInstalled}
+              style={{
+                padding: '12px',
+                borderRadius: 'var(--r-md)',
+                background: isInstalled ? 'var(--line)' : 'var(--accent)',
+                color: 'white',
+                border: 'none',
+                fontWeight: '600',
+                cursor: isInstalled ? 'default' : 'pointer',
+              }}
+            >
+              {isInstalled ? 'Already Installed' : 'Install Skill'}
+            </button>
+          ) : (
+            <>
+              <button
+                style={{
+                  padding: '12px',
+                  borderRadius: 'var(--r-md)',
+                  background: 'var(--accent)',
+                  color: 'white',
+                  border: 'none',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Enable Skill
+              </button>
+              <button
+                style={{
+                  padding: '12px',
+                  borderRadius: 'var(--r-md)',
+                  background: 'rgba(255,0,0,0.05)',
+                  color: 'var(--danger)',
+                  border: '1px solid var(--danger)',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Uninstall
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -573,6 +654,153 @@ function SettingsView({ config, onUpdate }) {
   )
 }
 
+function DiscoverView({ searchQuery, onSelectSkill, installedIds }) {
+  const [registrySkills, setRegistrySkills] = useState([])
+  const [categories, setCategories] = useState([])
+  const [selectedCategory, setSelectedCategory] = useState('all')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadCategories() {
+      const cats = await fetchCategories()
+      setCategories(cats)
+    }
+    loadCategories()
+  }, [])
+
+  useEffect(() => {
+    async function loadRegistry() {
+      setLoading(true)
+      try {
+        const result = await fetchRegistrySkills({
+          q: searchQuery,
+          category: selectedCategory,
+        })
+        setRegistrySkills(result.skills)
+      } catch (error) {
+        console.error('Failed to load registry:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadRegistry()
+  }, [searchQuery, selectedCategory])
+
+  return (
+    <div style={{ display: 'flex', minHeight: '100%' }}>
+      {/* Category Sidebar */}
+      <div
+        style={{
+          width: '200px',
+          borderRight: '1px solid var(--line)',
+          padding: '20px',
+        }}
+      >
+        <h3
+          style={{
+            fontSize: '11px',
+            fontWeight: '700',
+            color: 'var(--muted)',
+            textTransform: 'uppercase',
+            marginBottom: '16px',
+            letterSpacing: '0.04em',
+          }}
+        >
+          Categories
+        </h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {categories.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => setSelectedCategory(cat.id)}
+              style={{
+                textAlign: 'left',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                background:
+                  selectedCategory === cat.id
+                    ? 'var(--accent-soft)'
+                    : 'transparent',
+                color:
+                  selectedCategory === cat.id
+                    ? 'var(--accent)'
+                    : 'var(--ink-2)',
+                border: 'none',
+                fontSize: '13px',
+                fontWeight: selectedCategory === cat.id ? '600' : '500',
+                cursor: 'pointer',
+              }}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Grid Content */}
+      <div style={{ flex: 1, padding: '32px' }}>
+        <h2 style={{ fontSize: '24px', marginBottom: '8px' }}>Discover</h2>
+        <p
+          style={{
+            color: 'var(--muted)',
+            marginBottom: '32px',
+            fontSize: '14px',
+          }}
+        >
+          Explore and install new capabilities for your AI agents.
+        </p>
+
+        {loading ? (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+              gap: '20px',
+            }}
+          >
+            <SkillCardSkeleton />
+            <SkillCardSkeleton />
+            <SkillCardSkeleton />
+            <SkillCardSkeleton />
+          </div>
+        ) : registrySkills.length > 0 ? (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+              gap: '20px',
+            }}
+          >
+            {registrySkills.map((skill) => (
+              <SkillCard
+                key={skill.id}
+                skill={skill}
+                onClick={async () => {
+                  const detail = await fetchSkillDetail(skill.id)
+                  onSelectSkill(detail)
+                }}
+                isInstalled={installedIds.includes(skill.id)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '64px 0' }}>
+            <div style={{ fontSize: '48px' }}>🔍</div>
+            <h3
+              style={{ fontSize: '18px', fontWeight: '600', marginTop: '16px' }}
+            >
+              No skills found in registry
+            </h3>
+            <p style={{ color: 'var(--muted)', marginTop: '8px' }}>
+              Try a different search term or category.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function App() {
   const [currentView, setCurrentView] = useState('library')
   const [skills, setSkills] = useState([])
@@ -611,7 +839,6 @@ function App() {
       await invoke('update_config', { config: newConfig })
       setConfig(newConfig)
 
-      // Reload skills if the directory changed
       if (newConfig.skills_dir !== config.skills_dir) {
         setLoading(true)
         const result = await invoke('get_skills')
@@ -672,6 +899,8 @@ function App() {
     }
   }, [skills])
 
+  const installedIds = useMemo(() => skills.map((s) => s.id), [skills])
+
   const sidebar = (
     <>
       <MacSidebarHeader title="Library" />
@@ -710,10 +939,14 @@ function App() {
       >
         <div
           style={{
-            padding: currentView === 'settings' ? '0' : '20px',
+            padding:
+              currentView === 'settings' || currentView === 'discover'
+                ? '0'
+                : '20px',
             opacity: selectedSkill ? 0.6 : 1,
             transition: 'opacity 0.2s ease',
             pointerEvents: selectedSkill ? 'none' : 'auto',
+            minHeight: '100%',
           }}
         >
           {currentView === 'library' && (
@@ -885,7 +1118,13 @@ function App() {
               )}
             </div>
           )}
-          {currentView === 'discover' && <div>Discover new skills...</div>}
+          {currentView === 'discover' && (
+            <DiscoverView
+              searchQuery={searchQuery}
+              onSelectSkill={setSelectedSkill}
+              installedIds={installedIds}
+            />
+          )}
           {currentView === 'activity' && <div>Recent activity...</div>}
           {currentView === 'settings' && (
             <SettingsView config={config} onUpdate={handleUpdateConfig} />
@@ -897,6 +1136,8 @@ function App() {
         <SkillDetail
           skill={selectedSkill}
           onClose={() => setSelectedSkill(null)}
+          isRegistry={installedIds.indexOf(selectedSkill.id) === -1}
+          isInstalled={installedIds.includes(selectedSkill.id)}
         />
       )}
     </div>
