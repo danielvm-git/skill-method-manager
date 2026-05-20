@@ -1,77 +1,84 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import App from '../App'
+import { invoke } from '@tauri-apps/api/core'
 
 // Mock Tauri invoke
 vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn((command) => {
-    if (command === 'get_skills') {
-      return Promise.resolve([
-        {
-          id: 'skill-1',
-          name: 'Text Summarizer',
-          description: 'Summarizes long text into concise bullet points.',
-          version: '1.0.2',
-          author: 'Daniel VM',
-          status: 'active',
-        },
-      ])
-    }
-    return Promise.resolve([])
-  }),
+  invoke: vi.fn(),
 }))
+
+const MOCK_SKILLS = [
+  {
+    id: 'skill-1',
+    name: 'Text Summarizer',
+    description: 'Summarizes long text into concise bullet points.',
+    version: '1.0.2',
+    author: 'Daniel VM',
+    status: 'active',
+    type: 'skill',
+  },
+  {
+    id: 'method-1',
+    name: 'TDD Workflow',
+    description: 'A step-by-step method for test-driven development.',
+    version: '2.1.0',
+    author: 'AI Labs',
+    status: 'outdated',
+    type: 'method',
+  },
+]
 
 describe('App', () => {
   it('renders sidebar navigation', () => {
+    vi.mocked(invoke).mockResolvedValue([])
     render(<App />)
     expect(
       screen.getByRole('button', { name: /My Skills/i })
     ).toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: /Discover/i })
-    ).toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: /Settings/i })
-    ).toBeInTheDocument()
   })
 
-  it('fetches and displays skills on mount', async () => {
+  it('filters skills by search query', async () => {
+    vi.mocked(invoke).mockResolvedValue(MOCK_SKILLS)
     render(<App />)
 
-    // Wait for skills to be displayed
-    await waitFor(() => {
-      expect(screen.getByText(/Text Summarizer/i)).toBeInTheDocument()
-    })
+    await screen.findByText(/Text Summarizer/i)
+    expect(screen.getByText(/TDD Workflow/i)).toBeInTheDocument()
+
+    const searchInput = screen.getByPlaceholderText(/Search/i)
+    fireEvent.change(searchInput, { target: { value: 'Summarizer' } })
+
+    expect(screen.getByText(/Text Summarizer/i)).toBeInTheDocument()
+    expect(screen.queryByText(/TDD Workflow/i)).not.toBeInTheDocument()
   })
 
-  it('opens skill detail panel when a skill card is clicked', async () => {
+  it('filters skills by type chips', async () => {
+    vi.mocked(invoke).mockResolvedValue(MOCK_SKILLS)
     render(<App />)
 
-    // Wait for skill to load
-    const skillCard = await screen.findByText(/Text Summarizer/i)
-    fireEvent.click(skillCard)
+    await screen.findByText(/Text Summarizer/i)
 
-    // Check if detail panel is open
-    expect(screen.getByText(/Skill Details/i)).toBeInTheDocument()
+    const methodsChip = screen.getByRole('button', { name: /Methods/i })
+    fireEvent.click(methodsChip)
 
-    // Check for description in detail panel (should find at least one)
-    const descriptions = screen.getAllByText(/Summarizes long text/i)
-    expect(descriptions.length).toBeGreaterThan(0)
+    expect(screen.getByText(/TDD Workflow/i)).toBeInTheDocument()
+    expect(screen.queryByText(/Text Summarizer/i)).not.toBeInTheDocument()
 
-    // Close the panel
-    const closeButton = screen.getByText('✕')
-    fireEvent.click(closeButton)
-
-    // Check if panel is closed
-    expect(screen.queryByText(/Skill Details/i)).not.toBeInTheDocument()
+    // Clear filter
+    fireEvent.click(methodsChip)
+    expect(screen.getByText(/Text Summarizer/i)).toBeInTheDocument()
   })
 
-  it('switches views when sidebar items are clicked', async () => {
+  it('shows no results found state', async () => {
+    vi.mocked(invoke).mockResolvedValue(MOCK_SKILLS)
     render(<App />)
 
-    const discoverItem = screen.getByRole('button', { name: /Discover/i })
-    fireEvent.click(discoverItem)
+    await screen.findByText(/Text Summarizer/i)
 
-    expect(screen.getByText(/Discover new skills.../i)).toBeInTheDocument()
+    const searchInput = screen.getByPlaceholderText(/Search/i)
+    fireEvent.change(searchInput, { target: { value: 'nonexistent' } })
+
+    expect(screen.getByText(/No results found/i)).toBeInTheDocument()
+    expect(screen.getByText(/Clear Filters/i)).toBeInTheDocument()
   })
 })

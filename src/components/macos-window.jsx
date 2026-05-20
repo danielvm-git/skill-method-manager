@@ -116,11 +116,15 @@ export function MacTrafficLights({ style = {} }) {
  * @param {object} props
  * @param {string} [props.title='Folder']  — window title string
  * @param {string} [props.searchPlaceholder='Search'] — placeholder text
+ * @param {string} [props.searchValue=''] — current search value
+ * @param {function} [props.onSearchChange] — handler for search input change
  * @param {React.ReactNode} [props.actions] — optional extra controls (replaces default dot)
  */
 export function MacToolbar({
   title = 'Folder',
   searchPlaceholder = 'Search',
+  searchValue = '',
+  onSearchChange,
   actions,
 }) {
   return (
@@ -208,16 +212,45 @@ export function MacToolbar({
               strokeLinecap="round"
             />
           </svg>
-          <span
+          <input
+            type="text"
+            value={searchValue}
+            onChange={(e) => onSearchChange?.(e.target.value)}
+            placeholder={searchPlaceholder}
             style={{
+              width: '100%',
+              background: 'none',
+              border: 'none',
+              outline: 'none',
               fontFamily: MAC_FONT,
               fontSize: 13,
               fontWeight: 500,
-              color: '#727272',
+              color: 'rgba(0,0,0,0.85)',
+              padding: 0,
             }}
-          >
-            {searchPlaceholder}
-          </span>
+          />
+          {searchValue && (
+            <button
+              onClick={() => onSearchChange?.('')}
+              style={{
+                background: 'rgba(0,0,0,0.1)',
+                border: 'none',
+                width: 14,
+                height: 14,
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 8,
+                color: '#727272',
+                cursor: 'default',
+                flexShrink: 0,
+                padding: 0,
+              }}
+            >
+              ✕
+            </button>
+          )}
         </div>
       </MacGlass>
     </div>
@@ -402,6 +435,8 @@ export function MacSidebar({ children }) {
  * @param {number}  [props.height=800]      — window height in px
  * @param {string}  [props.title='Folder']  — toolbar title
  * @param {string}  [props.searchPlaceholder='Search']
+ * @param {string}  [props.searchValue='']
+ * @param {function} [props.onSearchChange]
  * @param {React.ReactNode} [props.sidebar] — sidebar content (items, headers)
  * @param {React.ReactNode} [props.toolbar] — override toolbar entirely
  * @param {React.ReactNode} [props.actions] — extra toolbar controls
@@ -412,6 +447,8 @@ export function MacWindow({
   height = 800,
   title = 'Folder',
   searchPlaceholder = 'Search',
+  searchValue = '',
+  onSearchChange,
   sidebar,
   toolbar,
   actions,
@@ -448,6 +485,8 @@ export function MacWindow({
           <MacToolbar
             title={title}
             searchPlaceholder={searchPlaceholder}
+            searchValue={searchValue}
+            onSearchChange={onSearchChange}
             actions={actions}
           />
         )}
