@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, memo } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
@@ -14,7 +14,7 @@ import {
   fetchSkillDetail,
 } from './api/registry'
 
-function StatusBadge({ status }) {
+const StatusBadge = memo(function StatusBadge({ status }) {
   const colors = {
     active: 'var(--ok)',
     inactive: 'var(--muted)',
@@ -48,9 +48,9 @@ function StatusBadge({ status }) {
       {status}
     </div>
   )
-}
+})
 
-function FilterChip({ label, active, onClick, count }) {
+const FilterChip = memo(function FilterChip({ label, active, onClick, count }) {
   return (
     <button
       onClick={onClick}
@@ -86,9 +86,9 @@ function FilterChip({ label, active, onClick, count }) {
       )}
     </button>
   )
-}
+})
 
-function SkillCard({ skill, onClick, isInstalled }) {
+const SkillCard = memo(function SkillCard({ skill, onClick, isInstalled }) {
   return (
     <div onClick={() => onClick(skill)} style={{ cursor: 'pointer' }}>
       <MacGlass radius={14} style={{ marginBottom: '12px' }}>
@@ -117,7 +117,13 @@ function SkillCard({ skill, onClick, isInstalled }) {
 
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontWeight: '600', fontSize: '15px' }}>
+              <span
+                style={{
+                  fontWeight: '600',
+                  fontSize: '15px',
+                  color: 'var(--ink)',
+                }}
+              >
                 {skill.name}
               </span>
               <span style={{ color: 'var(--muted)', fontSize: '12px' }}>
@@ -159,9 +165,9 @@ function SkillCard({ skill, onClick, isInstalled }) {
       </MacGlass>
     </div>
   )
-}
+})
 
-function SkillCardSkeleton() {
+const SkillCardSkeleton = memo(function SkillCardSkeleton() {
   return (
     <MacGlass radius={14} style={{ marginBottom: '12px' }}>
       <div
@@ -217,9 +223,13 @@ function SkillCardSkeleton() {
       </div>
     </MacGlass>
   )
-}
+})
 
-function InstallSheet({ skill, onClose, onComplete }) {
+const InstallSheet = memo(function InstallSheet({
+  skill,
+  onClose,
+  onComplete,
+}) {
   const [step, setStep] = useState(1)
   const [deps, setDeps] = useState([])
   const [loadingDeps, setLoadingDeps] = useState(true)
@@ -301,6 +311,7 @@ function InstallSheet({ skill, onClose, onComplete }) {
                   fontSize: '20px',
                   fontWeight: '700',
                   marginBottom: '8px',
+                  color: 'var(--ink)',
                 }}
               >
                 Install {skill.name}
@@ -356,6 +367,7 @@ function InstallSheet({ skill, onClose, onComplete }) {
                           display: 'flex',
                           alignItems: 'center',
                           gap: '8px',
+                          color: 'var(--ink-2)',
                         }}
                       >
                         <div
@@ -499,9 +511,9 @@ function InstallSheet({ skill, onClose, onComplete }) {
       </MacGlass>
     </div>
   )
-}
+})
 
-function SkillDetail({
+const SkillDetail = memo(function SkillDetail({
   skill,
   onClose,
   isRegistry = false,
@@ -547,7 +559,9 @@ function SkillDetail({
         >
           ✕
         </button>
-        <span style={{ fontWeight: '700', fontSize: '15px' }}>
+        <span
+          style={{ fontWeight: '700', fontSize: '15px', color: 'var(--ink)' }}
+        >
           {isRegistry ? 'Registry Skill' : 'Skill Details'}
         </span>
         <div style={{ width: '18px' }} />
@@ -570,7 +584,13 @@ function SkillDetail({
           >
             {skill.type === 'method' ? '🛠️' : '📦'}
           </div>
-          <h2 style={{ fontSize: '24px', marginBottom: '8px' }}>
+          <h2
+            style={{
+              fontSize: '24px',
+              marginBottom: '8px',
+              color: 'var(--ink)',
+            }}
+          >
             {skill.name}
           </h2>
           <div
@@ -651,6 +671,7 @@ function SkillDetail({
                     padding: '4px 10px',
                     borderRadius: 'var(--r-sm)',
                     fontSize: '12px',
+                    color: 'var(--ink-2)',
                   }}
                 >
                   {dep}
@@ -681,11 +702,13 @@ function SkillDetail({
             }}
           >
             <span style={{ color: 'var(--muted)' }}>Type</span>
-            <span style={{ textTransform: 'capitalize' }}>
+            <span
+              style={{ textTransform: 'capitalize', color: 'var(--ink-2)' }}
+            >
               {skill.type || 'skill'}
             </span>
             <span style={{ color: 'var(--muted)' }}>Author</span>
-            <span>{skill.author}</span>
+            <span style={{ color: 'var(--ink-2)' }}>{skill.author}</span>
             <span style={{ color: 'var(--muted)' }}>Skill ID</span>
             <code
               style={{
@@ -693,6 +716,7 @@ function SkillDetail({
                 background: 'var(--bg)',
                 padding: '2px 4px',
                 borderRadius: '4px',
+                color: 'var(--ink)',
               }}
             >
               {skill.id}
@@ -784,9 +808,9 @@ function SkillDetail({
       </div>
     </div>
   )
-}
+})
 
-function SettingsView({ config, onUpdate }) {
+const SettingsView = memo(function SettingsView({ config, onUpdate }) {
   const handlePickDir = async () => {
     const selected = await open({
       directory: true,
@@ -807,11 +831,20 @@ function SettingsView({ config, onUpdate }) {
 
   return (
     <div style={{ padding: '32px', maxWidth: '800px' }}>
-      <h2 style={{ fontSize: '24px', marginBottom: '32px' }}>Settings</h2>
+      <h2
+        style={{ fontSize: '24px', marginBottom: '32px', color: 'var(--ink)' }}
+      >
+        Settings
+      </h2>
 
       <div style={{ marginBottom: '48px' }}>
         <h3
-          style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}
+          style={{
+            fontSize: '16px',
+            fontWeight: '600',
+            marginBottom: '16px',
+            color: 'var(--ink)',
+          }}
         >
           Appearance
         </h3>
@@ -882,7 +915,12 @@ function SettingsView({ config, onUpdate }) {
 
       <div style={{ marginBottom: '48px' }}>
         <h3
-          style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}
+          style={{
+            fontSize: '16px',
+            fontWeight: '600',
+            marginBottom: '16px',
+            color: 'var(--ink)',
+          }}
         >
           Library Configuration
         </h3>
@@ -1018,7 +1056,12 @@ function SettingsView({ config, onUpdate }) {
 
       <div style={{ marginBottom: '48px' }}>
         <h3
-          style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}
+          style={{
+            fontSize: '16px',
+            fontWeight: '600',
+            marginBottom: '16px',
+            color: 'var(--ink)',
+          }}
         >
           About
         </h3>
@@ -1031,7 +1074,7 @@ function SettingsView({ config, onUpdate }) {
                   Skills & Methods Manager
                 </div>
                 <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
-                  Version 0.1.0 (Alpha)
+                  Version 1.0.0 (Production)
                 </div>
               </div>
             </div>
@@ -1050,9 +1093,9 @@ function SettingsView({ config, onUpdate }) {
       </div>
     </div>
   )
-}
+})
 
-function DiscoverView({
+const DiscoverView = memo(function DiscoverView({
   searchQuery,
   onSelectSkill,
   installedIds,
@@ -1220,9 +1263,9 @@ function DiscoverView({
       </div>
     </div>
   )
-}
+})
 
-function ActivityView() {
+const ActivityView = memo(function ActivityView() {
   const [activities, setActivities] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -1338,7 +1381,114 @@ function ActivityView() {
       )}
     </div>
   )
-}
+})
+
+const OnboardingView = memo(function OnboardingView({ config, onComplete }) {
+  const handlePickDir = async () => {
+    const selected = await open({
+      directory: true,
+      multiple: false,
+      title: 'Select Skills Directory',
+    })
+
+    if (selected) {
+      onComplete({ ...config, skills_dir: selected })
+    }
+  }
+
+  return (
+    <div
+      style={{
+        padding: '64px',
+        textAlign: 'center',
+        maxWidth: '600px',
+        margin: '0 auto',
+      }}
+    >
+      <div style={{ fontSize: '80px', marginBottom: '32px' }}>✨</div>
+      <h1
+        style={{
+          fontSize: '32px',
+          fontWeight: '800',
+          marginBottom: '16px',
+          color: 'var(--ink)',
+        }}
+      >
+        Welcome to Skill Manager
+      </h1>
+      <p
+        style={{
+          color: 'var(--muted)',
+          fontSize: '18px',
+          lineHeight: '1.6',
+          marginBottom: '48px',
+        }}
+      >
+        The easiest way to browse, install, and manage AI capabilities for your
+        development workflow.
+      </p>
+
+      <MacGlass radius={20} style={{ padding: '32px', textAlign: 'left' }}>
+        <h3
+          style={{
+            fontSize: '16px',
+            fontWeight: '700',
+            marginBottom: '12px',
+            color: 'var(--ink)',
+          }}
+        >
+          Getting Started
+        </h3>
+        <p
+          style={{
+            fontSize: '14px',
+            color: 'var(--ink-2)',
+            lineHeight: '1.5',
+            marginBottom: '24px',
+          }}
+        >
+          Please select the directory where you want to store your AI skills and
+          SDD methods. The default is typically <code>~/.claude/skills</code>.
+        </p>
+
+        <button
+          onClick={handlePickDir}
+          style={{
+            width: '100%',
+            padding: '14px',
+            borderRadius: 'var(--r-md)',
+            background: 'var(--accent)',
+            color: 'white',
+            border: 'none',
+            fontWeight: '700',
+            fontSize: '16px',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px var(--accent-soft)',
+          }}
+        >
+          Select Skills Directory
+        </button>
+        <button
+          onClick={() => onComplete({ ...config, skills_dir: '' })}
+          style={{
+            width: '100%',
+            marginTop: '12px',
+            padding: '10px',
+            borderRadius: 'var(--r-md)',
+            background: 'transparent',
+            color: 'var(--muted)',
+            border: 'none',
+            fontWeight: '600',
+            fontSize: '14px',
+            cursor: 'pointer',
+          }}
+        >
+          Use Default Path
+        </button>
+      </MacGlass>
+    </div>
+  )
+})
 
 function App() {
   const [currentView, setCurrentView] = useState('library')
@@ -1354,8 +1504,8 @@ function App() {
   })
   const [installingSkill, setInstallingSkill] = useState(null)
   const [updatesAvailable, setUpdatesAvailable] = useState(0)
+  const [isOnboarded, setIsOnboarded] = useState(true)
 
-  // Theme management
   useEffect(() => {
     const applyTheme = (theme) => {
       let activeTheme = theme
@@ -1399,65 +1549,70 @@ function App() {
     }
   }, [])
 
+  const loadData = useCallback(async () => {
+    setLoading(true)
+    try {
+      const result = await invoke('get_skills')
+      const normalizedResult = result.map((s) => ({
+        ...s,
+        type: s.type || (s.id.includes('method') ? 'method' : 'skill'),
+      }))
+      setSkills(normalizedResult)
+      checkUpdates(normalizedResult)
+    } catch (error) {
+      console.error('Data load failed:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [checkUpdates])
+
   useEffect(() => {
     async function init() {
       try {
         const cfg = await invoke('get_config')
         setConfig(cfg)
 
-        const result = await invoke('get_skills')
-        const normalizedResult = result.map((s) => ({
-          ...s,
-          type: s.type || (s.id.includes('method') ? 'method' : 'skill'),
-        }))
-        setSkills(normalizedResult)
-        checkUpdates(normalizedResult)
+        if (cfg.skills_dir === null) {
+          setIsOnboarded(false)
+          setLoading(false)
+        } else {
+          setIsOnboarded(true)
+          loadData()
+        }
       } catch (error) {
         console.error('Initialization failed:', error)
-      } finally {
         setLoading(false)
       }
     }
     init()
-  }, [checkUpdates])
+  }, [loadData])
 
-  const handleUpdateConfig = async (newConfig) => {
-    try {
-      await invoke('update_config', { config: newConfig })
-      setConfig(newConfig)
+  const handleUpdateConfig = useCallback(
+    async (newConfig) => {
+      try {
+        await invoke('update_config', { config: newConfig })
+        setConfig(newConfig)
 
-      if (newConfig.skills_dir !== config.skills_dir) {
-        setLoading(true)
-        const result = await invoke('get_skills')
-        const normalized = result.map((s) => ({
-          ...s,
-          type: s.type || (s.id.includes('method') ? 'method' : 'skill'),
-        }))
-        setSkills(normalized)
-        checkUpdates(normalized)
-        setLoading(false)
+        if (!isOnboarded && newConfig.skills_dir !== null) {
+          setIsOnboarded(true)
+        }
+
+        loadData()
+      } catch (error) {
+        console.error('Failed to update config:', error)
       }
-    } catch (error) {
-      console.error('Failed to update config:', error)
-    }
-  }
+    },
+    [isOnboarded, loadData]
+  )
 
-  const handleInstallComplete = async () => {
+  const handleInstallComplete = useCallback(async () => {
     setInstallingSkill(null)
     setSelectedSkill(null)
-    setLoading(true)
-    const result = await invoke('get_skills')
-    const normalized = result.map((s) => ({
-      ...s,
-      type: s.type || (s.id.includes('method') ? 'method' : 'skill'),
-    }))
-    setSkills(normalized)
-    checkUpdates(normalized)
-    setLoading(false)
+    await loadData()
     setCurrentView('library')
-  }
+  }, [loadData])
 
-  const toggleFilter = (category, value) => {
+  const toggleFilter = useCallback((category, value) => {
     setActiveFilters((prev) => {
       const current = prev[category]
       const next = current.includes(value)
@@ -1465,7 +1620,7 @@ function App() {
         : [...current, value]
       return { ...prev, [category]: next }
     })
-  }
+  }, [])
 
   const filteredSkills = useMemo(() => {
     return skills.filter((skill) => {
@@ -1533,6 +1688,14 @@ function App() {
       />
     </>
   )
+
+  if (!isOnboarded && !loading) {
+    return (
+      <MacWindow title="Welcome" sidebar={sidebar} actions={<div />}>
+        <OnboardingView config={config} onComplete={handleUpdateConfig} />
+      </MacWindow>
+    )
+  }
 
   return (
     <div style={{ position: 'relative' }}>
@@ -1665,7 +1828,7 @@ function App() {
                     <SkillCard
                       key={skill.id}
                       skill={skill}
-                      onClick={(s) => setSelectedSkill(s)}
+                      onClick={setSelectedSkill}
                       isInstalled={true}
                     />
                   ))}
@@ -1756,7 +1919,7 @@ function App() {
           onClose={() => setSelectedSkill(null)}
           isRegistry={!installedIds.includes(selectedSkill.id)}
           isInstalled={installedIds.includes(selectedSkill.id)}
-          onInstall={(s) => setInstallingSkill(s)}
+          onInstall={setInstallingSkill}
         />
       )}
 
