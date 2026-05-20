@@ -220,7 +220,7 @@ function SkillCardSkeleton() {
 }
 
 function InstallSheet({ skill, onClose, onComplete }) {
-  const [step, setStep] = useState(1) // 1: Review, 2: Progress, 3: Success
+  const [step, setStep] = useState(1)
   const [deps, setDeps] = useState([])
   const [loadingDeps, setLoadingDeps] = useState(true)
   const [progress, setProgress] = useState({
@@ -385,7 +385,8 @@ function InstallSheet({ skill, onClose, onComplete }) {
                     padding: '12px',
                     borderRadius: 'var(--r-md)',
                     border: '1px solid var(--line)',
-                    background: 'white',
+                    background: 'var(--paper)',
+                    color: 'var(--ink)',
                     fontWeight: '600',
                     cursor: 'pointer',
                   }}
@@ -454,6 +455,7 @@ function InstallSheet({ skill, onClose, onComplete }) {
                     justifyContent: 'center',
                     fontWeight: '700',
                     fontSize: '14px',
+                    color: 'var(--ink)',
                   }}
                 >
                   {Math.round(progress.percent)}%
@@ -464,6 +466,7 @@ function InstallSheet({ skill, onClose, onComplete }) {
                   fontSize: '18px',
                   fontWeight: '700',
                   marginBottom: '8px',
+                  color: 'var(--ink)',
                 }}
               >
                 Installing...
@@ -482,6 +485,7 @@ function InstallSheet({ skill, onClose, onComplete }) {
                   fontSize: '20px',
                   fontWeight: '700',
                   marginBottom: '8px',
+                  color: 'var(--ink)',
                 }}
               >
                 Success!
@@ -795,9 +799,86 @@ function SettingsView({ config, onUpdate }) {
     }
   }
 
+  const themeOptions = [
+    { id: 'system', label: 'System', icon: '🌓' },
+    { id: 'light', label: 'Light', icon: '☀️' },
+    { id: 'dark', label: 'Dark', icon: '🌙' },
+  ]
+
   return (
     <div style={{ padding: '32px', maxWidth: '800px' }}>
       <h2 style={{ fontSize: '24px', marginBottom: '32px' }}>Settings</h2>
+
+      <div style={{ marginBottom: '48px' }}>
+        <h3
+          style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}
+        >
+          Appearance
+        </h3>
+        <MacGlass radius={14}>
+          <div style={{ padding: '24px' }}>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '13px',
+                fontWeight: '600',
+                color: 'var(--muted)',
+                marginBottom: '12px',
+                textTransform: 'uppercase',
+              }}
+            >
+              App Theme
+            </label>
+            <div
+              style={{
+                display: 'flex',
+                background: 'var(--bg)',
+                padding: '4px',
+                borderRadius: 'var(--r-lg)',
+                border: '1px solid var(--line)',
+                gap: '4px',
+              }}
+            >
+              {themeOptions.map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => onUpdate({ ...config, theme: opt.id })}
+                  style={{
+                    flex: 1,
+                    padding: '8px',
+                    borderRadius: 'var(--r-md)',
+                    border: 'none',
+                    background:
+                      (config.theme || 'system') === opt.id
+                        ? 'var(--paper)'
+                        : 'transparent',
+                    color:
+                      (config.theme || 'system') === opt.id
+                        ? 'var(--ink)'
+                        : 'var(--muted)',
+                    boxShadow:
+                      (config.theme || 'system') === opt.id
+                        ? '0 2px 8px rgba(0,0,0,0.05)'
+                        : 'none',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    fontWeight:
+                      (config.theme || 'system') === opt.id ? '600' : '500',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <span>{opt.icon}</span>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </MacGlass>
+      </div>
 
       <div style={{ marginBottom: '48px' }}>
         <h3
@@ -882,7 +963,13 @@ function SettingsView({ config, onUpdate }) {
               }}
             >
               <div>
-                <div style={{ fontWeight: '600', fontSize: '14px' }}>
+                <div
+                  style={{
+                    fontWeight: '600',
+                    fontSize: '14px',
+                    color: 'var(--ink)',
+                  }}
+                >
                   Auto-reload library
                 </div>
                 <div
@@ -940,7 +1027,7 @@ function SettingsView({ config, onUpdate }) {
             <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
               <div style={{ fontSize: '32px' }}>✨</div>
               <div>
-                <div style={{ fontWeight: '700' }}>
+                <div style={{ fontWeight: '700', color: 'var(--ink)' }}>
                   Skills & Methods Manager
                 </div>
                 <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
@@ -1053,7 +1140,11 @@ function DiscoverView({
       </div>
 
       <div style={{ flex: 1, padding: '32px' }}>
-        <h2 style={{ fontSize: '24px', marginBottom: '8px' }}>Discover</h2>
+        <h2
+          style={{ fontSize: '24px', marginBottom: '8px', color: 'var(--ink)' }}
+        >
+          Discover
+        </h2>
         <p
           style={{
             color: 'var(--muted)',
@@ -1112,7 +1203,12 @@ function DiscoverView({
           <div style={{ textAlign: 'center', padding: '64px 0' }}>
             <div style={{ fontSize: '48px' }}>🔍</div>
             <h3
-              style={{ fontSize: '18px', fontWeight: '600', marginTop: '16px' }}
+              style={{
+                fontSize: '18px',
+                fontWeight: '600',
+                marginTop: '16px',
+                color: 'var(--ink)',
+              }}
             >
               No skills found in registry
             </h3>
@@ -1162,10 +1258,14 @@ function ActivityView() {
 
   return (
     <div style={{ padding: '32px', maxWidth: '800px' }}>
-      <h2 style={{ fontSize: '24px', marginBottom: '32px' }}>Activity</h2>
+      <h2
+        style={{ fontSize: '24px', marginBottom: '32px', color: 'var(--ink)' }}
+      >
+        Activity
+      </h2>
 
       {loading ? (
-        <p>Loading activity...</p>
+        <p style={{ color: 'var(--muted)' }}>Loading activity...</p>
       ) : activities.length > 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {activities.map((act) => (
@@ -1182,7 +1282,13 @@ function ActivityView() {
                   {getActionIcon(act.action)}
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: '600', fontSize: '14px' }}>
+                  <div
+                    style={{
+                      fontWeight: '600',
+                      fontSize: '14px',
+                      color: 'var(--ink)',
+                    }}
+                  >
                     {act.skill_name}{' '}
                     <span style={{ fontWeight: '400', color: 'var(--muted)' }}>
                       was {act.action}ed
@@ -1216,7 +1322,12 @@ function ActivityView() {
         <div style={{ textAlign: 'center', padding: '64px 0' }}>
           <div style={{ fontSize: '48px' }}>📜</div>
           <h3
-            style={{ fontSize: '18px', fontWeight: '600', marginTop: '16px' }}
+            style={{
+              fontSize: '18px',
+              fontWeight: '600',
+              marginTop: '16px',
+              color: 'var(--ink)',
+            }}
           >
             No activity yet
           </h3>
@@ -1236,9 +1347,38 @@ function App() {
   const [selectedSkill, setSelectedSkill] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilters, setActiveFilters] = useState({ type: [], status: [] })
-  const [config, setConfig] = useState({ skills_dir: null, auto_reload: true })
+  const [config, setConfig] = useState({
+    skills_dir: null,
+    auto_reload: true,
+    theme: 'system',
+  })
   const [installingSkill, setInstallingSkill] = useState(null)
   const [updatesAvailable, setUpdatesAvailable] = useState(0)
+
+  // Theme management
+  useEffect(() => {
+    const applyTheme = (theme) => {
+      let activeTheme = theme
+      if (theme === 'system') {
+        activeTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light'
+      }
+      document.documentElement.setAttribute('data-theme', activeTheme)
+    }
+
+    applyTheme(config.theme || 'system')
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    const handleChange = () => {
+      if ((config.theme || 'system') === 'system') {
+        applyTheme('system')
+      }
+    }
+
+    mediaQuery.addEventListener('change', handleChange)
+    return () => mediaQuery.removeEventListener('change', handleChange)
+  }, [config.theme])
 
   const checkUpdates = useCallback(async (localSkills) => {
     try {
@@ -1460,7 +1600,9 @@ function App() {
                   marginBottom: '20px',
                 }}
               >
-                <h2 style={{ fontSize: '20px' }}>Installed Skills</h2>
+                <h2 style={{ fontSize: '20px', color: 'var(--ink)' }}>
+                  Installed Skills
+                </h2>
                 {skills.length > 0 && (
                   <span style={{ fontSize: '13px', color: 'var(--muted)' }}>
                     {filteredSkills.length} of {skills.length}
@@ -1546,7 +1688,13 @@ function App() {
                       ? '🔍'
                       : '📭'}
                   </div>
-                  <h3 style={{ fontSize: '18px', fontWeight: '600' }}>
+                  <h3
+                    style={{
+                      fontSize: '18px',
+                      fontWeight: '600',
+                      color: 'var(--ink)',
+                    }}
+                  >
                     {searchQuery ||
                     activeFilters.type.length ||
                     activeFilters.status.length

@@ -31,6 +31,17 @@
   --r-lg: 14px;
   --r-xl: 18px;
   --r-2xl: 22px;
+
+  /* Component specific (macOS Tahoe style) */
+  --mac-window-bg: #ffffff;
+  --mac-sidebar-bg: rgba(210, 225, 245, 0.45);
+  --mac-sidebar-border: rgba(255, 255, 255, 0.50);
+  --mac-text: rgba(0, 0, 0, 0.85);
+  --mac-text-muted: rgba(0, 0, 0, 0.50);
+  --mac-glass-bg: rgba(255, 255, 255, 0.35);
+  --mac-glass-border: rgba(255, 255, 255, 0.6);
+  --mac-glass-shadow: 0 8px 40px rgba(0, 0, 0, 0.08);
+  --mac-input-placeholder: #727272;
 }
 
 [data-theme="dark"] {
@@ -46,6 +57,17 @@
   --warn: oklch(82% 0.14 75);
   --danger: oklch(70% 0.19 25);
   --info: oklch(72% 0.12 235);
+
+  /* Component specific (macOS Tahoe style) */
+  --mac-window-bg: #1e1e1e;
+  --mac-sidebar-bg: rgba(40, 44, 52, 0.45);
+  --mac-sidebar-border: rgba(255, 255, 255, 0.10);
+  --mac-text: rgba(255, 255, 255, 0.90);
+  --mac-text-muted: rgba(255, 255, 255, 0.50);
+  --mac-glass-bg: rgba(255, 255, 255, 0.08);
+  --mac-glass-border: rgba(255, 255, 255, 0.12);
+  --mac-glass-shadow: 0 8px 40px rgba(0, 0, 0, 0.20);
+  --mac-input-placeholder: #A0A4AB;
 }
 
 * {
@@ -60,6 +82,7 @@ body {
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 #root {

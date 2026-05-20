@@ -27,9 +27,6 @@ const TL_RED = '#ff736a'
 const TL_YELLOW = '#febc2e'
 const TL_GREEN = '#19c332'
 
-// Sidebar glass fill — periwinkle-tinted frosted panel
-const SIDEBAR_BG = 'rgba(210,225,245,0.45)'
-
 // ─── MacGlass ─────────────────────────────────────────────────────────────────
 
 /**
@@ -38,10 +35,9 @@ const SIDEBAR_BG = 'rgba(210,225,245,0.45)'
  * @param {object}  props
  * @param {React.ReactNode} props.children
  * @param {number}  [props.radius=16]   — border-radius in px
- * @param {boolean} [props.dark=false]  — dark-variant tint
  * @param {object}  [props.style={}]    — additional styles on the wrapper
  */
-export function MacGlass({ children, radius = 16, dark = false, style = {} }) {
+export function MacGlass({ children, radius = 16, style = {} }) {
   return (
     <div style={{ position: 'relative', borderRadius: radius, ...style }}>
       {/* Blur + tint layer */}
@@ -50,17 +46,11 @@ export function MacGlass({ children, radius = 16, dark = false, style = {} }) {
           position: 'absolute',
           inset: 0,
           borderRadius: radius,
-          background: dark
-            ? 'rgba(255,255,255,0.08)'
-            : 'rgba(255,255,255,0.35)',
+          background: 'var(--mac-glass-bg)',
           backdropFilter: 'blur(40px) saturate(180%)',
           WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-          border: dark
-            ? '0.5px solid rgba(255,255,255,0.12)'
-            : '0.5px solid rgba(255,255,255,0.6)',
-          boxShadow: dark
-            ? '0 8px 40px rgba(0,0,0,0.20)'
-            : '0 8px 40px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.4)',
+          border: '0.5px solid var(--mac-glass-border)',
+          boxShadow: 'var(--mac-glass-shadow)',
         }}
       />
       {/* Content sits above the blur layer */}
@@ -143,7 +133,7 @@ export function MacToolbar({
           fontFamily: MAC_FONT,
           fontSize: 15,
           fontWeight: 700,
-          color: 'rgba(0,0,0,0.85)',
+          color: 'var(--mac-text)',
           whiteSpace: 'nowrap',
           paddingLeft: 8,
         }}
@@ -170,7 +160,7 @@ export function MacToolbar({
                 width: 14,
                 height: 14,
                 borderRadius: '50%',
-                background: '#4c4c4c',
+                background: 'var(--mac-text)',
                 opacity: 0.4,
               }}
             />
@@ -202,12 +192,12 @@ export function MacToolbar({
               cx="5.5"
               cy="5.5"
               r="4"
-              stroke="#727272"
+              stroke="var(--mac-input-placeholder)"
               strokeWidth="1.5"
             />
             <path
               d="M8.5 8.5l3 3"
-              stroke="#727272"
+              stroke="var(--mac-input-placeholder)"
               strokeWidth="1.5"
               strokeLinecap="round"
             />
@@ -225,7 +215,7 @@ export function MacToolbar({
               fontFamily: MAC_FONT,
               fontSize: 13,
               fontWeight: 500,
-              color: 'rgba(0,0,0,0.85)',
+              color: 'var(--mac-text)',
               padding: 0,
             }}
           />
@@ -233,7 +223,7 @@ export function MacToolbar({
             <button
               onClick={() => onSearchChange?.('')}
               style={{
-                background: 'rgba(0,0,0,0.1)',
+                background: 'rgba(255,255,255,0.1)',
                 border: 'none',
                 width: 14,
                 height: 14,
@@ -242,7 +232,7 @@ export function MacToolbar({
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: 8,
-                color: '#727272',
+                color: 'var(--mac-input-placeholder)',
                 cursor: 'default',
                 flexShrink: 0,
                 padding: 0,
@@ -299,8 +289,7 @@ export function MacSidebarItem({ label, selected = false, icon, onClick }) {
             position: 'absolute',
             inset: 0,
             borderRadius: 8,
-            background: 'rgba(0,0,0,0.11)',
-            mixBlendMode: 'multiply',
+            background: 'var(--accent-soft)',
           }}
         />
       )}
@@ -312,15 +301,15 @@ export function MacSidebarItem({ label, selected = false, icon, onClick }) {
             width: 14,
             height: 14,
             borderRadius: '50%',
-            background: selected ? '#007aff' : 'rgba(0,0,0,0.4)',
-            opacity: selected ? 1 : 0.5,
+            background: selected ? 'var(--accent)' : 'var(--mac-text)',
+            opacity: selected ? 1 : 0.4,
             flexShrink: 0,
             position: 'relative',
           }}
         />
       )}
 
-      <span style={{ color: 'rgba(0,0,0,0.85)', position: 'relative' }}>
+      <span style={{ color: 'var(--mac-text)', position: 'relative' }}>
         {label}
       </span>
     </div>
@@ -343,7 +332,7 @@ export function MacSidebarHeader({ title }) {
         fontFamily: MAC_FONT,
         fontSize: 11,
         fontWeight: 700,
-        color: 'rgba(0,0,0,0.50)',
+        color: 'var(--mac-text-muted)',
         textTransform: 'uppercase',
         letterSpacing: '0.04em',
       }}
@@ -381,12 +370,11 @@ export function MacSidebar({ children }) {
           position: 'absolute',
           inset: 8,
           borderRadius: 18,
-          background: SIDEBAR_BG,
+          background: 'var(--mac-sidebar-bg)',
           backdropFilter: 'blur(50px) saturate(200%)',
           WebkitBackdropFilter: 'blur(50px) saturate(200%)',
-          border: '0.5px solid rgba(255,255,255,0.50)',
-          boxShadow:
-            '0 8px 40px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.35)',
+          border: '0.5px solid var(--mac-sidebar-border)',
+          boxShadow: '0 8px 40px rgba(0,0,0,0.10)',
         }}
       />
 
@@ -461,7 +449,7 @@ export function MacWindow({
         height,
         borderRadius: 26,
         overflow: 'hidden',
-        background: '#ffffff',
+        background: 'var(--mac-window-bg)',
         boxShadow: '0 0 0 1px rgba(0,0,0,0.23), 0 16px 48px rgba(0,0,0,0.35)',
         display: 'flex',
         position: 'relative',
