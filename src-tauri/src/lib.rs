@@ -1,8 +1,10 @@
 use serde::{Serialize, Deserialize};
 use std::fs;
 use std::path::PathBuf;
+use std::thread;
+use std::time::Duration;
 use walkdir::WalkDir;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, Emitter};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Skill {
@@ -14,6 +16,7 @@ pub struct Skill {
     status: String,
     #[serde(rename = "type")]
     skill_type: String,
+    pub dependencies: Option<Vec<String>>,
 }
 
 #[derive(Deserialize)]
@@ -28,6 +31,7 @@ struct SkillData {
     description: String,
     version: String,
     author: String,
+    dependencies: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -43,6 +47,14 @@ impl Default for AppConfig {
             auto_reload: true,
         }
     }
+}
+
+#[derive(Serialize, Clone)]
+struct InstallProgress {
+    id: String,
+    status: String,
+    progress: f32,
+    message: String,
 }
 
 fn get_config_path(app_handle: &AppHandle) -> PathBuf {
@@ -74,8 +86,6 @@ fn update_config(app_handle: AppHandle, config: AppConfig) -> Result<(), String>
 #[tauri::command]
 fn get_skills(app_handle: AppHandle) -> Vec<Skill> {
     let mut skills = Vec::new();
-    
-    // Get the configured or default skills directory
     let config = get_config(app_handle.clone());
     let skills_dir = if let Some(path_str) = config.skills_dir {
         PathBuf::from(path_str)
@@ -85,17 +95,12 @@ fn get_skills(app_handle: AppHandle) -> Vec<Skill> {
         }).join("skills")
     };
     
-    // Ensure the directory exists
     if !skills_dir.exists() {
         let _ = fs::create_dir_all(&skills_dir);
         return vec![];
     }
 
-    for entry in WalkDir::new(skills_dir)
-        .max_depth(2)
-        .into_iter()
-        .filter_map(|e| e.ok()) {
-        
+    for entry in WalkDir::new(skills_dir).max_depth(2).into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
         if path.is_file() && path.file_name().map_or(false, |n| n == "skill.toml") {
             if let Ok(content) = fs::read_to_string(path) {
@@ -108,13 +113,50 @@ fn get_skills(app_handle: AppHandle) -> Vec<Skill> {
                         author: manifest.skill.author,
                         status: "active".into(),
                         skill_type: if manifest.skill.id.contains("method") { "method".into() } else { "skill".into() },
+                        dependencies: manifest.skill.dependencies,
                     });
                 }
             }
         }
     }
-    
     skills
+}
+
+#[tauri::command]
+fn resolve_dependencies(skill_id: String) -> Result<Vec<String>, String> {
+    // Mock resolution logic
+    if skill_id == "reg-skill-1" {
+        Ok(vec!["python-runtime-3.11".into(), "pandas-toolkit".into()])
+    } else if skill_id == "reg-skill-2" {
+        Ok(vec!["node-js-20".into()])
+    } else {
+        Ok(vec![])
+    }
+}
+
+#[tauri::command]
+fn install_skill(app_handle: AppHandle, skill_id: String) -> Result<(), String> {
+    let skill_id_clone = skill_id.clone();
+    
+    // Spawn installation task in a separate thread to simulate async work
+    thread::spawn(move || {
+        let statuses = ["downloading", "extracting", "validating", "finalizing"];
+        
+        for (i, status) in statuses.iter().enumerate() {
+            let progress = (i + 1) as f32 / statuses.length() as f32;
+            let _ = app_handle.emit("install-progress", InstallProgress {
+                id: skill_id_clone.clone(),
+                status: status.to_string(),
+                progress,
+                message: format!("Processing {}...", status),
+            });
+            thread::sleep(Duration::from_millis(1000));
+        }
+        
+        let _ = app_handle.emit("install-success", skill_id_clone);
+    });
+    
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -122,7 +164,7 @@ pub fn run() {
   tauri::Builder::default()
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_fs::init())
-    .invoke_handler(tauri::generate_handler![get_skills, get_config, update_config])
+    .invoke_handler(tauri::generate_handler![get_skills, get_config, update_config, resolve_dependencies, install_skill])
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(

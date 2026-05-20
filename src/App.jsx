@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import {
   MacWindow,
@@ -216,11 +217,290 @@ function SkillCardSkeleton() {
   )
 }
 
+function InstallSheet({ skill, onClose, onComplete }) {
+  const [step, setStep] = useState(1) // 1: Review, 2: Progress, 3: Success
+  const [deps, setDeps] = useState([])
+  const [loadingDeps, setLoadingDeps] = useState(true)
+  const [progress, setProgress] = useState({
+    percent: 0,
+    message: 'Initializing...',
+  })
+
+  useEffect(() => {
+    async function loadDeps() {
+      try {
+        const result = await invoke('resolve_dependencies', {
+          skillId: skill.id,
+        })
+        setDeps(result)
+      } catch (e) {
+        console.error('Failed to resolve deps:', e)
+      } finally {
+        setLoadingDeps(false)
+      }
+    }
+    loadDeps()
+  }, [skill.id])
+
+  useEffect(() => {
+    let unlistenProgress
+    let unlistenSuccess
+
+    async function setupListeners() {
+      unlistenProgress = await listen('install-progress', (event) => {
+        if (event.payload.id === skill.id) {
+          setProgress({
+            percent: event.payload.progress * 100,
+            message: event.payload.message,
+          })
+        }
+      })
+      unlistenSuccess = await listen('install-success', (event) => {
+        if (event.payload === skill.id) {
+          setStep(3)
+          setTimeout(() => {
+            onComplete()
+          }, 2000)
+        }
+      })
+    }
+
+    if (step === 2) {
+      setupListeners()
+      invoke('install_skill', { skillId: skill.id })
+    }
+
+    return () => {
+      if (unlistenProgress) unlistenProgress()
+      if (unlistenSuccess) unlistenSuccess()
+    }
+  }, [step, skill.id, onComplete])
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.2)',
+        backdropFilter: 'blur(4px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+      }}
+    >
+      <MacGlass radius={20} style={{ width: '400px', overflow: 'hidden' }}>
+        <div style={{ padding: '32px', textAlign: 'center' }}>
+          {step === 1 && (
+            <>
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>📦</div>
+              <h3
+                style={{
+                  fontSize: '20px',
+                  fontWeight: '700',
+                  marginBottom: '8px',
+                }}
+              >
+                Install {skill.name}
+              </h3>
+              <p
+                style={{
+                  color: 'var(--muted)',
+                  fontSize: '14px',
+                  marginBottom: '24px',
+                }}
+              >
+                This will download and configure the skill in your library.
+              </p>
+
+              <div
+                style={{
+                  textAlign: 'left',
+                  background: 'var(--bg)',
+                  padding: '16px',
+                  borderRadius: 'var(--r-lg)',
+                  marginBottom: '24px',
+                }}
+              >
+                <h4
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    color: 'var(--muted)',
+                    textTransform: 'uppercase',
+                    marginBottom: '12px',
+                  }}
+                >
+                  Required Dependencies
+                </h4>
+                {loadingDeps ? (
+                  <div style={{ fontSize: '13px', color: 'var(--muted)' }}>
+                    Resolving...
+                  </div>
+                ) : deps.length > 0 ? (
+                  <ul
+                    style={{
+                      listStyle: 'none',
+                      fontSize: '13px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                    }}
+                  >
+                    {deps.map((d) => (
+                      <li
+                        key={d}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: '6px',
+                            height: '6px',
+                            borderRadius: '50%',
+                            background: 'var(--accent)',
+                          }}
+                        />
+                        {d}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div style={{ fontSize: '13px', color: 'var(--muted)' }}>
+                    No extra dependencies required.
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  onClick={onClose}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: 'var(--r-md)',
+                    border: '1px solid var(--line)',
+                    background: 'white',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={loadingDeps}
+                  onClick={() => setStep(2)}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: 'var(--r-md)',
+                    border: 'none',
+                    background: 'var(--accent)',
+                    color: 'white',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    opacity: loadingDeps ? 0.5 : 1,
+                  }}
+                >
+                  Confirm Install
+                </button>
+              </div>
+            </>
+          )}
+
+          {step === 2 && (
+            <>
+              <div
+                style={{
+                  width: '80px',
+                  height: '80px',
+                  margin: '0 auto 24px',
+                  position: 'relative',
+                }}
+              >
+                <svg width="80" height="80" viewBox="0 0 80 80">
+                  <circle
+                    cx="40"
+                    cy="40"
+                    r="36"
+                    fill="none"
+                    stroke="var(--line)"
+                    strokeWidth="8"
+                  />
+                  <circle
+                    cx="40"
+                    cy="40"
+                    r="36"
+                    fill="none"
+                    stroke="var(--accent)"
+                    strokeWidth="8"
+                    strokeDasharray={226}
+                    strokeDashoffset={226 - (226 * progress.percent) / 100}
+                    strokeLinecap="round"
+                    style={{ transition: 'stroke-dashoffset 0.3s ease' }}
+                  />
+                </svg>
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyCenter: 'center',
+                    fontWeight: '700',
+                    fontSize: '14px',
+                  }}
+                >
+                  {Math.round(progress.percent)}%
+                </div>
+              </div>
+              <h3
+                style={{
+                  fontSize: '18px',
+                  fontWeight: '700',
+                  marginBottom: '8px',
+                }}
+              >
+                Installing...
+              </h3>
+              <p style={{ color: 'var(--muted)', fontSize: '14px' }}>
+                {progress.message}
+              </p>
+            </>
+          )}
+
+          {step === 3 && (
+            <>
+              <div style={{ fontSize: '64px', marginBottom: '16px' }}>✅</div>
+              <h3
+                style={{
+                  fontSize: '20px',
+                  fontWeight: '700',
+                  marginBottom: '8px',
+                }}
+              >
+                Success!
+              </h3>
+              <p style={{ color: 'var(--muted)', fontSize: '14px' }}>
+                {skill.name} has been installed and is ready to use.
+              </p>
+            </>
+          )}
+        </div>
+      </MacGlass>
+    </div>
+  )
+}
+
 function SkillDetail({
   skill,
   onClose,
   isRegistry = false,
   isInstalled = false,
+  onInstall,
 }) {
   if (!skill) return null
 
@@ -423,6 +703,7 @@ function SkillDetail({
           {isRegistry ? (
             <button
               disabled={isInstalled}
+              onClick={() => onInstall(skill)}
               style={{
                 padding: '12px',
                 borderRadius: 'var(--r-md)',
@@ -812,6 +1093,7 @@ function App() {
     status: [],
   })
   const [config, setConfig] = useState({ skills_dir: null, auto_reload: true })
+  const [installingSkill, setInstallingSkill] = useState(null)
 
   useEffect(() => {
     async function init() {
@@ -853,6 +1135,22 @@ function App() {
     } catch (error) {
       console.error('Failed to update config:', error)
     }
+  }
+
+  const handleInstallComplete = async () => {
+    setInstallingSkill(null)
+    setSelectedSkill(null)
+    // Reload library
+    setLoading(true)
+    const result = await invoke('get_skills')
+    setSkills(
+      result.map((s) => ({
+        ...s,
+        type: s.type || (s.id.includes('method') ? 'method' : 'skill'),
+      }))
+    )
+    setLoading(false)
+    setCurrentView('library')
   }
 
   const toggleFilter = (category, value) => {
@@ -943,9 +1241,9 @@ function App() {
               currentView === 'settings' || currentView === 'discover'
                 ? '0'
                 : '20px',
-            opacity: selectedSkill ? 0.6 : 1,
+            opacity: selectedSkill || installingSkill ? 0.6 : 1,
             transition: 'opacity 0.2s ease',
-            pointerEvents: selectedSkill ? 'none' : 'auto',
+            pointerEvents: selectedSkill || installingSkill ? 'none' : 'auto',
             minHeight: '100%',
           }}
         >
@@ -1138,6 +1436,15 @@ function App() {
           onClose={() => setSelectedSkill(null)}
           isRegistry={installedIds.indexOf(selectedSkill.id) === -1}
           isInstalled={installedIds.includes(selectedSkill.id)}
+          onInstall={(s) => setInstallingSkill(s)}
+        />
+      )}
+
+      {installingSkill && (
+        <InstallSheet
+          skill={installingSkill}
+          onClose={() => setInstallingSkill(null)}
+          onComplete={handleInstallComplete}
         />
       )}
     </div>
