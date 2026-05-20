@@ -12,6 +12,25 @@
   --warn: oklch(72% 0.14 75);
   --danger: oklch(60% 0.19 25);
   --info: oklch(62% 0.12 235);
+
+  /* Spacing Scale (4px base) */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 20px;
+  --s6: 24px;
+  --s8: 32px;
+  --s10: 40px;
+  --s12: 48px;
+  --s16: 64px;
+
+  /* Border Radius */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 18px;
+  --r-2xl: 22px;
 }
 
 [data-theme="dark"] {
