@@ -16,21 +16,19 @@
  *   MacTrafficLights — close / minimise / zoom dot trio
  */
 
-import React from 'react';
-
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
 /** System-font stack that resolves to SF Pro on macOS. */
 const MAC_FONT =
-  '-apple-system, BlinkMacSystemFont, "SF Pro", "Helvetica Neue", sans-serif';
+  '-apple-system, BlinkMacSystemFont, "SF Pro", "Helvetica Neue", sans-serif'
 
 // Traffic-light colours (macOS Tahoe)
-const TL_RED    = '#ff736a';
-const TL_YELLOW = '#febc2e';
-const TL_GREEN  = '#19c332';
+const TL_RED = '#ff736a'
+const TL_YELLOW = '#febc2e'
+const TL_GREEN = '#19c332'
 
 // Sidebar glass fill — periwinkle-tinted frosted panel
-const SIDEBAR_BG = 'rgba(210,225,245,0.45)';
+const SIDEBAR_BG = 'rgba(210,225,245,0.45)'
 
 // ─── MacGlass ─────────────────────────────────────────────────────────────────
 
@@ -68,7 +66,7 @@ export function MacGlass({ children, radius = 16, dark = false, style = {} }) {
       {/* Content sits above the blur layer */}
       <div style={{ position: 'relative', zIndex: 1 }}>{children}</div>
     </div>
-  );
+  )
 }
 
 // ─── MacTrafficLights ─────────────────────────────────────────────────────────
@@ -90,7 +88,7 @@ export function MacTrafficLights({ style = {} }) {
         flexShrink: 0,
       }}
     />
-  );
+  )
 
   return (
     <div
@@ -106,7 +104,7 @@ export function MacTrafficLights({ style = {} }) {
       {dot(TL_YELLOW)}
       {dot(TL_GREEN)}
     </div>
-  );
+  )
 }
 
 // ─── MacToolbar ───────────────────────────────────────────────────────────────
@@ -223,7 +221,7 @@ export function MacToolbar({
         </div>
       </MacGlass>
     </div>
-  );
+  )
 }
 
 // ─── MacSidebarItem ───────────────────────────────────────────────────────────
@@ -237,12 +235,7 @@ export function MacToolbar({
  * @param {React.ReactNode} [props.icon] — optional icon node (replaces default dot)
  * @param {function} [props.onClick]     — click handler
  */
-export function MacSidebarItem({
-  label,
-  selected = false,
-  icon,
-  onClick,
-}) {
+export function MacSidebarItem({ label, selected = false, icon, onClick }) {
   return (
     <div
       role="button"
@@ -298,7 +291,7 @@ export function MacSidebarItem({
         {label}
       </span>
     </div>
-  );
+  )
 }
 
 // ─── MacSidebarHeader ─────────────────────────────────────────────────────────
@@ -324,7 +317,7 @@ export function MacSidebarHeader({ title }) {
     >
       {title}
     </div>
-  );
+  )
 }
 
 // ─── MacSidebar ───────────────────────────────────────────────────────────────
@@ -392,7 +385,7 @@ export function MacSidebar({ children }) {
         {children}
       </div>
     </div>
-  );
+  )
 }
 
 // ─── MacWindow ────────────────────────────────────────────────────────────────
@@ -432,20 +425,24 @@ export function MacWindow({
         borderRadius: 26,
         overflow: 'hidden',
         background: '#ffffff',
-        boxShadow:
-          '0 0 0 1px rgba(0,0,0,0.23), 0 16px 48px rgba(0,0,0,0.35)',
+        boxShadow: '0 0 0 1px rgba(0,0,0,0.23), 0 16px 48px rgba(0,0,0,0.35)',
         display: 'flex',
         position: 'relative',
         fontFamily: MAC_FONT,
       }}
     >
       {/* Sidebar */}
-      {sidebar !== undefined && (
-        <MacSidebar>{sidebar}</MacSidebar>
-      )}
+      {sidebar !== undefined && <MacSidebar>{sidebar}</MacSidebar>}
 
       {/* Main column */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          minWidth: 0,
+        }}
+      >
         {/* Toolbar — custom or default */}
         {toolbar ?? (
           <MacToolbar
@@ -461,5 +458,5 @@ export function MacWindow({
         </div>
       </div>
     </div>
-  );
+  )
 }
