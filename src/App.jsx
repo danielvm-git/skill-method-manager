@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { open } from '@tauri-apps/plugin-dialog'
 import {
   MacWindow,
   MacSidebarItem,
@@ -389,6 +390,189 @@ function SkillDetail({ skill, onClose }) {
   )
 }
 
+function SettingsView({ config, onUpdate }) {
+  const handlePickDir = async () => {
+    const selected = await open({
+      directory: true,
+      multiple: false,
+      title: 'Select Skills Directory',
+    })
+
+    if (selected) {
+      onUpdate({ ...config, skills_dir: selected })
+    }
+  }
+
+  return (
+    <div style={{ padding: '32px', maxWidth: '800px' }}>
+      <h2 style={{ fontSize: '24px', marginBottom: '32px' }}>Settings</h2>
+
+      <div style={{ marginBottom: '48px' }}>
+        <h3
+          style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}
+        >
+          Library Configuration
+        </h3>
+        <MacGlass radius={14}>
+          <div
+            style={{
+              padding: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '24px',
+            }}
+          >
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  color: 'var(--muted)',
+                  marginBottom: '12px',
+                  textTransform: 'uppercase',
+                }}
+              >
+                Skills Directory
+              </label>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <div
+                  style={{
+                    flex: 1,
+                    padding: '10px 14px',
+                    background: 'var(--bg)',
+                    borderRadius: 'var(--r-md)',
+                    fontSize: '13px',
+                    color: 'var(--ink-2)',
+                    border: '1px solid var(--line)',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {config.skills_dir || 'Default (~/.claude/skills)'}
+                </div>
+                <button
+                  onClick={handlePickDir}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 'var(--r-md)',
+                    background: 'var(--accent)',
+                    color: 'white',
+                    border: 'none',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                  }}
+                >
+                  Change...
+                </button>
+              </div>
+              <p
+                style={{
+                  marginTop: '12px',
+                  fontSize: '12px',
+                  color: 'var(--muted)',
+                }}
+              >
+                The app will scan this directory for <code>skill.toml</code>{' '}
+                manifest files.
+              </p>
+            </div>
+
+            <div
+              style={{
+                borderTop: '1px solid var(--line)',
+                paddingTop: '24px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: '600', fontSize: '14px' }}>
+                  Auto-reload library
+                </div>
+                <div
+                  style={{
+                    fontSize: '12px',
+                    color: 'var(--muted)',
+                    marginTop: '2px',
+                  }}
+                >
+                  Watch for file changes and update automatically.
+                </div>
+              </div>
+              <button
+                onClick={() =>
+                  onUpdate({ ...config, auto_reload: !config.auto_reload })
+                }
+                style={{
+                  width: '40px',
+                  height: '24px',
+                  borderRadius: '12px',
+                  background: config.auto_reload ? 'var(--ok)' : 'var(--line)',
+                  position: 'relative',
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'background 0.2s ease',
+                }}
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '2px',
+                    left: config.auto_reload ? '18px' : '2px',
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    background: 'white',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                    transition: 'left 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  }}
+                />
+              </button>
+            </div>
+          </div>
+        </MacGlass>
+      </div>
+
+      <div style={{ marginBottom: '48px' }}>
+        <h3
+          style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}
+        >
+          About
+        </h3>
+        <MacGlass radius={14}>
+          <div style={{ padding: '24px', fontSize: '14px' }}>
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+              <div style={{ fontSize: '32px' }}>✨</div>
+              <div>
+                <div style={{ fontWeight: '700' }}>
+                  Skills & Methods Manager
+                </div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  Version 0.1.0 (Alpha)
+                </div>
+              </div>
+            </div>
+            <p
+              style={{
+                marginTop: '16px',
+                color: 'var(--ink-2)',
+                lineHeight: '1.5',
+              }}
+            >
+              A native-feeling macOS package manager for AI skills and SDD
+              methods. Built with Tauri, Rust, and React.
+            </p>
+          </div>
+        </MacGlass>
+      </div>
+    </div>
+  )
+}
+
 function App() {
   const [currentView, setCurrentView] = useState('library')
   const [skills, setSkills] = useState([])
@@ -399,26 +583,50 @@ function App() {
     type: [],
     status: [],
   })
+  const [config, setConfig] = useState({ skills_dir: null, auto_reload: true })
 
   useEffect(() => {
-    async function loadSkills() {
-      setLoading(true)
+    async function init() {
       try {
+        const cfg = await invoke('get_config')
+        setConfig(cfg)
+
         const result = await invoke('get_skills')
-        // Ensure type field exists for older mock data/manifests
         const normalizedResult = result.map((s) => ({
           ...s,
           type: s.type || (s.id.includes('method') ? 'method' : 'skill'),
         }))
         setSkills(normalizedResult)
       } catch (error) {
-        console.error('Failed to load skills:', error)
+        console.error('Initialization failed:', error)
       } finally {
         setLoading(false)
       }
     }
-    loadSkills()
+    init()
   }, [])
+
+  const handleUpdateConfig = async (newConfig) => {
+    try {
+      await invoke('update_config', { config: newConfig })
+      setConfig(newConfig)
+
+      // Reload skills if the directory changed
+      if (newConfig.skills_dir !== config.skills_dir) {
+        setLoading(true)
+        const result = await invoke('get_skills')
+        setSkills(
+          result.map((s) => ({
+            ...s,
+            type: s.type || (s.id.includes('method') ? 'method' : 'skill'),
+          }))
+        )
+        setLoading(false)
+      }
+    } catch (error) {
+      console.error('Failed to update config:', error)
+    }
+  }
 
   const toggleFilter = (category, value) => {
     setActiveFilters((prev) => {
@@ -432,7 +640,6 @@ function App() {
 
   const filteredSkills = useMemo(() => {
     return skills.filter((skill) => {
-      // Search query filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase()
         const matchesSearch =
@@ -443,12 +650,10 @@ function App() {
         if (!matchesSearch) return false
       }
 
-      // Type filter (OR within group)
       if (activeFilters.type.length > 0) {
         if (!activeFilters.type.includes(skill.type)) return false
       }
 
-      // Status filter (OR within group)
       if (activeFilters.status.length > 0) {
         if (!activeFilters.status.includes(skill.status)) return false
       }
@@ -505,7 +710,7 @@ function App() {
       >
         <div
           style={{
-            padding: '20px',
+            padding: currentView === 'settings' ? '0' : '20px',
             opacity: selectedSkill ? 0.6 : 1,
             transition: 'opacity 0.2s ease',
             pointerEvents: selectedSkill ? 'none' : 'auto',
@@ -529,7 +734,6 @@ function App() {
                 )}
               </div>
 
-              {/* Filter Row */}
               {!loading && skills.length > 0 && (
                 <div
                   style={{
@@ -683,7 +887,9 @@ function App() {
           )}
           {currentView === 'discover' && <div>Discover new skills...</div>}
           {currentView === 'activity' && <div>Recent activity...</div>}
-          {currentView === 'settings' && <div>Application settings...</div>}
+          {currentView === 'settings' && (
+            <SettingsView config={config} onUpdate={handleUpdateConfig} />
+          )}
         </div>
       </MacWindow>
 

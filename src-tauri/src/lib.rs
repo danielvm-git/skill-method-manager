@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use walkdir::WalkDir;
 use tauri::{AppHandle, Manager};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Skill {
     id: String,
     name: String,
@@ -12,6 +12,8 @@ pub struct Skill {
     version: String,
     author: String,
     status: String,
+    #[serde(rename = "type")]
+    skill_type: String,
 }
 
 #[derive(Deserialize)]
@@ -28,17 +30,60 @@ struct SkillData {
     author: String,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AppConfig {
+    pub skills_dir: Option<String>,
+    pub auto_reload: bool,
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        Self {
+            skills_dir: None,
+            auto_reload: true,
+        }
+    }
+}
+
+fn get_config_path(app_handle: &AppHandle) -> PathBuf {
+    app_handle.path().app_config_dir().unwrap().join("config.json")
+}
+
+#[tauri::command]
+fn get_config(app_handle: AppHandle) -> AppConfig {
+    let config_path = get_config_path(&app_handle);
+    if let Ok(content) = fs::read_to_string(config_path) {
+        serde_json::from_str(&content).unwrap_or_default()
+    } else {
+        AppConfig::default()
+    }
+}
+
+#[tauri::command]
+fn update_config(app_handle: AppHandle, config: AppConfig) -> Result<(), String> {
+    let config_path = get_config_path(&app_handle);
+    let config_dir = config_path.parent().unwrap();
+    
+    fs::create_dir_all(config_dir).map_err(|e| e.to_string())?;
+    let content = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
+    fs::write(config_path, content).map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+
 #[tauri::command]
 fn get_skills(app_handle: AppHandle) -> Vec<Skill> {
     let mut skills = Vec::new();
     
-    // Get the app data directory
-    let app_data_dir = app_handle.path().app_data_dir().unwrap_or_else(|_| {
-        // Fallback for development if app_data_dir fails
-        PathBuf::from("skills")
-    });
-    
-    let skills_dir = app_data_dir.join("skills");
+    // Get the configured or default skills directory
+    let config = get_config(app_handle.clone());
+    let skills_dir = if let Some(path_str) = config.skills_dir {
+        PathBuf::from(path_str)
+    } else {
+        app_handle.path().app_data_dir().unwrap_or_else(|_| {
+            PathBuf::from("skills")
+        }).join("skills")
+    };
     
     // Ensure the directory exists
     if !skills_dir.exists() {
@@ -56,12 +101,13 @@ fn get_skills(app_handle: AppHandle) -> Vec<Skill> {
             if let Ok(content) = fs::read_to_string(path) {
                 if let Ok(manifest) = toml::from_str::<SkillManifest>(&content) {
                     skills.push(Skill {
-                        id: manifest.skill.id,
+                        id: manifest.skill.id.clone(),
                         name: manifest.skill.name,
                         description: manifest.skill.description,
                         version: manifest.skill.version,
                         author: manifest.skill.author,
-                        status: "active".into(), // Default status
+                        status: "active".into(),
+                        skill_type: if manifest.skill.id.contains("method") { "method".into() } else { "skill".into() },
                     });
                 }
             }
@@ -74,7 +120,9 @@ fn get_skills(app_handle: AppHandle) -> Vec<Skill> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![get_skills])
+    .plugin(tauri_plugin_dialog::init())
+    .plugin(tauri_plugin_fs::init())
+    .invoke_handler(tauri::generate_handler![get_skills, get_config, update_config])
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
